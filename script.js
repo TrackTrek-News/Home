@@ -211,7 +211,7 @@ document.addEventListener('DOMContentLoaded', function() {
     renderPosts(filteredPosts);
   });
 
-  // Other existing functions for navbar, search, etc.
+  // Navbar and search icon functionality
   const navbar = document.querySelector('.navbar');
   const searchContainer = document.querySelector('.search-container');
   const searchIcon = document.querySelector('.search-icon');
