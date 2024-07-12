@@ -13,13 +13,18 @@ document.addEventListener('DOMContentLoaded', function() {
       postsData = data;
       renderPosts(postsData);
 
-      // Check for postId in URL
-      const queryParams = getQueryParams();
-      if (queryParams.post) {
-        const postId = queryParams.post;
-        const specificPost = postsData.find(post => slugify(post.title) === postId);
-        if (specificPost) {
-          fetchHTML(specificPost.html_link);
+      // Check URL for postId parameter and show the post
+      const urlParams = new URLSearchParams(window.location.search);
+      const postId = urlParams.get('post');
+      if (postId) {
+        const post = postsData.find(p => slugify(p.title) === postId);
+        if (post) {
+          renderPosts([post]); // Show only the specific post
+          if (post.html_link.startsWith('http')) {
+            fetchHTML(post.html_link); // Fetch HTML content if link is external
+          } else {
+            fetchHTML('https://raw.githubusercontent.com/TrackTrekk/_/main/' + post.html_link); // Fetch HTML content for local links
+          }
         }
       }
     })
@@ -29,8 +34,6 @@ document.addEventListener('DOMContentLoaded', function() {
   function renderPosts(posts) {
     boxContainer.innerHTML = ''; // Clear the container before rendering
     posts.forEach(post => {
-      const postId = slugify(post.title);
-
       const box = document.createElement('div');
       box.classList.add('box');
       box.setAttribute('data-href', post.html_link); // Use the HTML link from JSON
@@ -77,10 +80,14 @@ document.addEventListener('DOMContentLoaded', function() {
       // Add event listener for box navigation
       box.addEventListener('click', function() {
         console.log('Box clicked, fetching HTML:', post.html_link); // Debugging
-        fetchHTML(post.html_link); // Fetch HTML content on click
+        if (post.html_link.startsWith('http')) {
+          window.open(post.html_link, '_blank'); // Open external link in a new tab
+        } else {
+          fetchHTML('https://raw.githubusercontent.com/TrackTrekk/_/main/' + post.html_link); // Fetch HTML content for local links
+        }
       });
 
-      // Share button functionality
+      // Prevent share button click from triggering box click
       shareButton.addEventListener('click', function(event) {
         event.stopPropagation();
         dropdown.classList.toggle('active');
@@ -92,8 +99,8 @@ document.addEventListener('DOMContentLoaded', function() {
         link.addEventListener('click', function(event) {
           event.preventDefault();
           const platform = link.getAttribute('data-platform');
-          const shareUrl = buildShareUrl(platform, postId, post.title); // Use the post title slug
-          // window.open(shareUrl, '_blank'); // Remove to prevent opening in new tab
+          const shareUrl = buildShareUrl(platform, post.html_link, post.title); // Use the HTML link from JSON
+          window.open(shareUrl, '_blank'); // Open in a new tab
           console.log('Sharing on:', platform, 'Link:', shareUrl); // Debugging
         });
       });
@@ -102,7 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const copyLink = dropdown.querySelector('.copy-link');
       copyLink.addEventListener('click', function(event) {
         event.preventDefault();
-        copyToClipboard(window.location.origin + window.location.pathname + '?post=' + postId); // Copy the shareable link with post title slug
+        copyToClipboard(window.location.origin + window.location.pathname + '?post=' + slugify(post.title)); // Use slugified title for postId
         alert('Link copied to clipboard');
       });
 
@@ -148,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add event listener to close button
     closeButton.addEventListener('click', function() {
       boxContainer.removeChild(postContentContainer);
-      renderPosts(postsData); // Re-render all posts when overlay is closed
+      renderPosts(postsData); // Re-render posts after closing
     });
 
     // Add scroll event listener to keep close button visible while scrolling
@@ -158,15 +165,15 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Function to build share URLs
-  function buildShareUrl(platform, postId, title) {
-    const href = window.location.origin + window.location.pathname + '?post=' + postId;
+  function buildShareUrl(platform, href, title) {
+    const shareLink = window.location.origin + window.location.pathname + '?post=' + slugify(title);
     switch(platform) {
       case 'facebook':
-        return 'https://www.facebook.com/sharer.php?u=' + encodeURIComponent(href);
+        return 'https://www.facebook.com/sharer.php?u=' + encodeURIComponent(shareLink);
       case 'twitter':
-        return 'https://twitter.com/intent/tweet?url=' + encodeURIComponent(href) + '&text=' + encodeURIComponent(title);
+        return 'https://twitter.com/intent/tweet?url=' + encodeURIComponent(shareLink) + '&text=' + encodeURIComponent(title);
       case 'linkedin':
-        return 'https://www.linkedin.com/shareArticle?url=' + encodeURIComponent(href) + '&title=' + encodeURIComponent(title);
+        return 'https://www.linkedin.com/shareArticle?url=' + encodeURIComponent(shareLink) + '&title=' + encodeURIComponent(title);
       default:
         return '#';
     }
@@ -182,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.body.removeChild(el);
   }
 
-  // Function to convert a string to a URL-friendly slug
+  // Slugify function for titles
   function slugify(text) {
     return text.toString().toLowerCase()
       .replace(/\s+/g, '-')           // Replace spaces with -
@@ -190,16 +197,6 @@ document.addEventListener('DOMContentLoaded', function() {
       .replace(/\-\-+/g, '-')         // Replace multiple - with single -
       .replace(/^-+/, '')             // Trim - from start of text
       .replace(/-+$/, '');            // Trim - from end of text
-  }
-
-  // Get query parameters from URL
-  function getQueryParams() {
-    const params = {};
-    window.location.search.substring(1).split('&').forEach(param => {
-      const [key, value] = param.split('=');
-      params[key] = decodeURIComponent(value);
-    });
-    return params;
   }
 
   // Close dropdown when clicking outside
@@ -218,8 +215,32 @@ document.addEventListener('DOMContentLoaded', function() {
     const filteredPosts = postsData.filter(post => {
       const date = post.date.toLowerCase();
       const tags = post.tags ? post.tags.map(tag => tag.toLowerCase()).join(' ') : '';
-      return date.includes(query) || tags.includes(query);
+      return post.title.toLowerCase().includes(query) || date.includes(query) || tags.includes(query);
     });
     renderPosts(filteredPosts);
+  });
+
+  // Other existing functions for navbar, search, etc.
+  const navbar = document.querySelector('.navbar');
+  const searchContainer = document.querySelector('.search-container');
+  const searchIcon = document.querySelector('.search-icon');
+
+  window.toggleMenu = function() {
+    navbar.classList.toggle('active');
+  }
+
+  window.toggleSearch = function() {
+    searchContainer.style.display = (searchContainer.style.display === 'block') ? 'none' : 'block';
+    searchIcon.classList.toggle('active');
+  }
+
+  window.addEventListener('scroll', function() {
+    const dropdowns = document.querySelectorAll('.dropdown');
+    dropdowns.forEach(dropdown => {
+      dropdown.classList.remove('active');
+    });
+    navbar.classList.remove('active');
+    searchContainer.style.display = 'none';
+    searchIcon.classList.remove('active');
   });
 });
