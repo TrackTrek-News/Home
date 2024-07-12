@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
   const boxContainer = document.querySelector('.box-container');
   const searchInput = document.querySelector('.search-container input[type="text"]');
-  const githubRawLink = 'https://raw.githubusercontent.com/TrackTrek-News/Home/main/posts.json'; // Replace with your actual link
+  const githubRawLink = 'posts.json'; // Replace with your actual link
 
   let postsData = [];
 
