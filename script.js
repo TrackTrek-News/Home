@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const urlParams = new URLSearchParams(window.location.search);
       const postId = urlParams.get('post');
       if (postId) {
-        const post = postsData.find(p => slugify(p.title) === postId);
+        const post = postsData.find(p => slugify(p.id) === postId);
         if (post) {
           fetchHTML(post.html_link);
         }
@@ -91,7 +91,7 @@ document.addEventListener('DOMContentLoaded', function() {
           event.preventDefault();
           const platform = link.getAttribute('data-platform');
           const shareUrl = buildShareUrl(platform, post.html_link, post.title); // Use the HTML link from JSON
-          // window.open(shareUrl, '_blank'); // Remove to prevent opening in new tab
+          window.open(shareUrl, '_blank'); // Open the share URL in a new tab
           console.log('Sharing on:', platform, 'Link:', shareUrl); // Debugging
         });
       });
@@ -100,7 +100,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const copyLink = dropdown.querySelector('.copy-link');
       copyLink.addEventListener('click', function(event) {
         event.preventDefault();
-        copyToClipboard(window.location.origin + window.location.pathname + '?post=' + slugify(post.title)); // Use slugified title for postId
+        copyToClipboard(window.location.origin + window.location.pathname + '?post=' + slugify(post.id)); // Use post id for postId
         alert('Link copied to clipboard');
       });
 
@@ -204,9 +204,10 @@ document.addEventListener('DOMContentLoaded', function() {
   searchInput.addEventListener('input', function() {
     const query = searchInput.value.toLowerCase();
     const filteredPosts = postsData.filter(post => {
+      const title = post.title.toLowerCase();
       const date = post.date.toLowerCase();
       const tags = post.tags ? post.tags.map(tag => tag.toLowerCase()).join(' ') : '';
-      return date.includes(query) || tags.includes(query);
+      return title.includes(query) || date.includes(query) || tags.includes(query);
     });
     renderPosts(filteredPosts);
   });
