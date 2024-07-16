@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
           } else {
             fetchHTML('https://raw.githubusercontent.com/TrackTrekk/_/main/' + post.html_link); // Fetch HTML content for local links
           }
+          updateMetaTags(post); // Update meta tags for the post
         }
       }
     })
@@ -84,6 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
           window.open(post.html_link, '_blank'); // Open external link in a new tab
         } else {
           fetchHTML('https://raw.githubusercontent.com/TrackTrekk/_/main/' + post.html_link); // Fetch HTML content for local links
+          updateMetaTags(post); // Update meta tags for the post
         }
       });
 
@@ -197,6 +199,19 @@ document.addEventListener('DOMContentLoaded', function() {
       .replace(/\-\-+/g, '-')         // Replace multiple - with single -
       .replace(/^-+/, '')             // Trim - from start of text
       .replace(/-+$/, '');            // Trim - from end of text
+  }
+
+  // Function to update meta tags
+  function updateMetaTags(post) {
+    document.querySelector('meta[name="description"]').setAttribute("content", post.description);
+    document.querySelector('meta[name="keywords"]').setAttribute("content", post.keywords);
+    document.querySelector('meta[property="og:title"]').setAttribute("content", post.title);
+    document.querySelector('meta[property="og:description"]').setAttribute("content", post.description);
+    document.querySelector('meta[property="og:image"]').setAttribute("content", post.image);
+    document.querySelector('meta[property="og:url"]').setAttribute("content", window.location.href);
+    document.querySelector('meta[name="twitter:title"]').setAttribute("content", post.title);
+    document.querySelector('meta[name="twitter:description"]').setAttribute("content", post.description);
+    document.querySelector('meta[name="twitter:image"]').setAttribute("content", post.image);
   }
 
   // Close dropdown when clicking outside
