@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
           } else {
             fetchHTML('https://raw.githubusercontent.com/TrackTrekk/_/main/' + post.html_link); // Fetch HTML content for local links
           }
+          updateMetaTags(post); // Update meta tags
         }
       }
     })
@@ -85,6 +86,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
           fetchHTML('https://raw.githubusercontent.com/TrackTrekk/_/main/' + post.html_link); // Fetch HTML content for local links
         }
+        updateMetaTags(post); // Update meta tags
       });
 
       // Prevent share button click from triggering box click
@@ -182,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Function to copy text to clipboard
   function copyToClipboard(text) {
     const el = document.createElement('textarea');
-    el.value = text;
+       el.value = text;
     document.body.appendChild(el);
     el.select();
     document.execCommand('copy');
@@ -199,6 +201,60 @@ document.addEventListener('DOMContentLoaded', function() {
       .replace(/-+$/, '');            // Trim - from end of text
   }
 
+  // Function to update meta tags dynamically
+  function updateMetaTags(post) {
+    // Update title
+    document.title = post.title + " - TrackTrek News";
+
+    // Update meta description
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', post.content);
+    }
+
+    // Update meta keywords
+    const metaKeywords = document.querySelector('meta[name="keywords"]');
+    if (metaKeywords) {
+      metaKeywords.setAttribute('content', post.tags.join(', '));
+    }
+
+    // Update Open Graph and Twitter meta tags
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    if (ogTitle) {
+      ogTitle.setAttribute('content', post.title);
+    }
+
+    const ogDescription = document.querySelector('meta[property="og:description"]');
+    if (ogDescription) {
+      ogDescription.setAttribute('content', post.content);
+    }
+
+    const ogImage = document.querySelector('meta[property="og:image"]');
+    if (ogImage) {
+      ogImage.setAttribute('content', post.image);
+    }
+
+    const ogUrl = document.querySelector('meta[property="og:url"]');
+    if (ogUrl) {
+      ogUrl.setAttribute('content', window.location.href);
+    }
+
+    const twitterTitle = document.querySelector('meta[name="twitter:title"]');
+    if (twitterTitle) {
+      twitterTitle.setAttribute('content', post.title);
+    }
+
+    const twitterDescription = document.querySelector('meta[name="twitter:description"]');
+    if (twitterDescription) {
+      twitterDescription.setAttribute('content', post.content);
+    }
+
+    const twitterImage = document.querySelector('meta[name="twitter:image"]');
+    if (twitterImage) {
+      twitterImage.setAttribute('content', post.image);
+    }
+  }
+
   // Close dropdown when clicking outside
   document.addEventListener('click', function(event) {
     const dropdowns = document.querySelectorAll('.dropdown');
@@ -212,13 +268,10 @@ document.addEventListener('DOMContentLoaded', function() {
   // Search functionality
   searchInput.addEventListener('input', function() {
     const query = searchInput.value.toLowerCase();
-    const filteredPosts = postsData.filter(post =>
-    const query = searchInput.value.toLowerCase();
     const filteredPosts = postsData.filter(post => {
-      const title = post.title.toLowerCase();
       const date = post.date.toLowerCase();
-      const keywords = post.keywords ? post.keywords.toLowerCase() : '';
-      return title.includes(query) || date.includes(query) || keywords.includes(query);
+      const tags = post.tags ? post.tags.map(tag => tag.toLowerCase()).join(' ') : '';
+      return post.title.toLowerCase().includes(query) || date.includes(query) || tags.includes(query);
     });
     renderPosts(filteredPosts);
   });
