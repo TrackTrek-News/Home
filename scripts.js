@@ -25,7 +25,6 @@ document.addEventListener('DOMContentLoaded', function() {
           } else {
             fetchHTML('https://raw.githubusercontent.com/TrackTrekk/_/main/' + post.html_link); // Fetch HTML content for local links
           }
-          updateMetaTags(post); // Update meta tags for the post
         }
       }
     })
@@ -85,7 +84,6 @@ document.addEventListener('DOMContentLoaded', function() {
           window.open(post.html_link, '_blank'); // Open external link in a new tab
         } else {
           fetchHTML('https://raw.githubusercontent.com/TrackTrekk/_/main/' + post.html_link); // Fetch HTML content for local links
-          updateMetaTags(post); // Update meta tags for the post
         }
       });
 
@@ -201,19 +199,6 @@ document.addEventListener('DOMContentLoaded', function() {
       .replace(/-+$/, '');            // Trim - from end of text
   }
 
-  // Function to update meta tags
-  function updateMetaTags(post) {
-    document.querySelector('meta[name="description"]').setAttribute("content", post.description);
-    document.querySelector('meta[name="keywords"]').setAttribute("content", post.keywords);
-    document.querySelector('meta[property="og:title"]').setAttribute("content", post.title);
-    document.querySelector('meta[property="og:description"]').setAttribute("content", post.description);
-    document.querySelector('meta[property="og:image"]').setAttribute("content", post.image);
-    document.querySelector('meta[property="og:url"]').setAttribute("content", window.location.href);
-    document.querySelector('meta[name="twitter:title"]').setAttribute("content", post.title);
-    document.querySelector('meta[name="twitter:description"]').setAttribute("content", post.description);
-    document.querySelector('meta[name="twitter:image"]').setAttribute("content", post.image);
-  }
-
   // Close dropdown when clicking outside
   document.addEventListener('click', function(event) {
     const dropdowns = document.querySelectorAll('.dropdown');
@@ -227,10 +212,13 @@ document.addEventListener('DOMContentLoaded', function() {
   // Search functionality
   searchInput.addEventListener('input', function() {
     const query = searchInput.value.toLowerCase();
+    const filteredPosts = postsData.filter(post =>
+    const query = searchInput.value.toLowerCase();
     const filteredPosts = postsData.filter(post => {
+      const title = post.title.toLowerCase();
       const date = post.date.toLowerCase();
-      const tags = post.tags ? post.tags.map(tag => tag.toLowerCase()).join(' ') : '';
-      return post.title.toLowerCase().includes(query) || date.includes(query) || tags.includes(query);
+      const keywords = post.keywords ? post.keywords.toLowerCase() : '';
+      return title.includes(query) || date.includes(query) || keywords.includes(query);
     });
     renderPosts(filteredPosts);
   });
