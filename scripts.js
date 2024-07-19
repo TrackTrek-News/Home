@@ -135,36 +135,201 @@ document.addEventListener('DOMContentLoaded', function() {
       .catch(error => console.error('Error fetching HTML:', error));
   }
 
-  // Function to display HTML content
-  function displayHTML(html) {
-    // Clear existing content
-    boxContainer.innerHTML = '';
+// Function to show the overlay
+function showOverlay(html) {
+    // Save the current scroll position
+    const scrollPosition = window.scrollY || document.documentElement.scrollTop;
 
-    // Create a container for the HTML content
-    const postContentContainer = document.createElement('div');
-    postContentContainer.classList.add('post-content-container');
-    postContentContainer.innerHTML = html;
+    // Create the overlay element
+    const overlay = document.createElement('div');
+    overlay.classList.add('overlay');
+    overlay.innerHTML = `
+        <div class="post-content-container">
+            <div class="text-container">${html}</div>
+            <div class="tts-controls" style="display: none;">
+                <br>
+                <select id="voiceselection" aria-label="Voice selection"></select>
+                <br>
+                <label for="speedControl">Speed:</label>
+                <input type="range" id="speedControl" min="0.1" max="2" step="0.1" value="1" aria-label="Speech speed">
+                <span id="speedValue">1.0</span>
+                <br>
+                <input id="stopButton" type="button" value="Stop" aria-label="Stop speech"/>
+            </div>
+            <div class="tts-widget">
+                <i class="fas fa-volume-up"></i> <!-- You can use any icon you like -->
+            </div>
+        </div>
+        <div class="close-button"><i class="fas fa-times"></i></div>
+    `;
 
-    // Create a close button
-    const closeButton = document.createElement('div');
-    closeButton.classList.add('close-button');
-    closeButton.innerHTML = '<i class="fas fa-times"></i>';
-    postContentContainer.appendChild(closeButton);
+    // Append the overlay to the body
+    document.body.appendChild(overlay);
 
-    // Append the content to the box container
-    boxContainer.appendChild(postContentContainer);
+    // Prevent background scrolling
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollPosition}px`;
+    document.body.style.width = '100%';
 
-    // Add event listener to close button
-    closeButton.addEventListener('click', function() {
-      boxContainer.removeChild(postContentContainer);
-      renderPosts(postsData); // Re-render posts after closing
+    // Add event listener to the close button
+    overlay.querySelector('.close-button').addEventListener('click', function() {
+        // Remove the overlay and restore background scrolling
+        document.body.removeChild(overlay);
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        window.scrollTo(0, scrollPosition); // Restore scroll position
+        if (ttsInstance) {
+            ttsInstance.stop(); // Stop TTS when closing the overlay
+        }
+        renderPosts(postsData); // Re-render posts after closing
     });
 
-    // Add scroll event listener to keep close button visible while scrolling
-    postContentContainer.addEventListener('scroll', function() {
-      closeButton.style.display = 'block'; // Show close button while scrolling
+    // Populate voice selection dropdown
+    function populateVoices() {
+        var voicelist = responsiveVoice.getVoices();
+        var vselect = document.getElementById('voiceselection');
+        vselect.innerHTML = ''; // Clear existing options
+
+        if (voicelist.length === 0) {
+            setTimeout(populateVoices, 100); // Retry if voices are not yet loaded
+            return;
+        }
+
+        voicelist.forEach(function(voice) {
+            var option = document.createElement('option');
+            option.value = voice.name;
+            option.textContent = voice.name;
+            vselect.appendChild(option);
+        });
+    }
+
+    populateVoices(); // Call the function to populate voices
+
+    // Update the speed value display
+    document.getElementById('speedControl').addEventListener('input', function() {
+        document.getElementById('speedValue').textContent = this.value;
     });
-  }
+
+    // Function to read and highlight text
+    let sentences = [];
+    let currentSentenceIndex = -1;
+    let ttsInstance = null;
+
+    // Function to split text into sentences and wrap them in spans
+    function splitTextIntoSentences(text) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = text;
+        const elements = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6, p, sub');
+        sentences = [];
+        elements.forEach(el => {
+            const text = el.innerText;
+            text.split(/(?<=[.!?])\s+/).forEach(sentence => {
+                if (sentence.trim()) sentences.push(sentence.trim());
+            });
+        });
+
+        let wrappedText = text;
+        sentences.forEach((sentence, index) => {
+            const wrappedSentence = `<span class="sentence" data-index="${index}">${sentence}</span>`;
+            wrappedText = wrappedText.replace(sentence, wrappedSentence);
+        });
+
+        return wrappedText;
+    }
+
+    const initialText = overlay.querySelector('.text-container').innerHTML;
+    const wrappedText = splitTextIntoSentences(initialText);
+    overlay.querySelector('.text-container').innerHTML = wrappedText;
+
+    function speakAndHighlight(startIndex = 0) {
+        const textInput = overlay.querySelector('.text-container').innerHTML;
+        const selectedVoiceName = document.getElementById('voiceselection').value;
+        const speed = document.getElementById('speedControl').value;
+
+        function highlightSentence(index) {
+            if (index >= sentences.length) return; // Stop if index is out of bounds
+
+            const textArea = overlay.querySelector('.text-container');
+            const currentSentence = sentences[index];
+            const highlightedHTML = textInput.replace(currentSentence, `<mark>${currentSentence}</mark>`);
+            textArea.innerHTML = highlightedHTML;
+            addClickEventToSentences(); // Re-add click events after highlighting
+
+            // Scroll the highlighted sentence into view
+            const sentenceElement = textArea.querySelector(`[data-index="${index}"]`);
+            if (sentenceElement) {
+                sentenceElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        function speakNext() {
+            if (currentSentenceIndex < sentences.length - 1) {
+                currentSentenceIndex++;
+                const currentSentence = sentences[currentSentenceIndex];
+                responsiveVoice.speak(currentSentence, selectedVoiceName, {
+                    rate: speed, // Adjust the rate of speech
+                    onend: function() {
+                        highlightSentence(currentSentenceIndex);
+                        speakNext();
+                    }
+                });
+                highlightSentence(currentSentenceIndex);
+            }
+        }
+
+        currentSentenceIndex = startIndex;
+        ttsInstance = { stop: () => responsiveVoice.cancel() }; // Create TTS instance
+        speakNext();
+        return ttsInstance; // Return TTS instance
+    }
+
+    // Handle Stop/Pause button
+    document.getElementById('stopButton').addEventListener('click', function() {
+        if (ttsInstance) {
+            ttsInstance.stop(); // Stop speech
+        }
+    });
+
+    // Add click event to sentences for manual selection
+    function addClickEventToSentences() {
+        const textArea = overlay.querySelector('.text-container');
+        const spans = textArea.querySelectorAll('.sentence');
+
+        spans.forEach((span, index) => {
+            span.addEventListener('click', () => {
+                if (ttsInstance) {
+                    ttsInstance.stop(); // Stop ongoing TTS
+                }
+                currentSentenceIndex = index; // Set current sentence index to clicked one
+                ttsInstance = speakAndHighlight(index); // Start reading from the selected sentence
+            });
+        });
+    }
+
+    // Initial call to add click events to sentences
+    addClickEventToSentences();
+
+    // Add event listener to widget icon to toggle TTS controls
+    const ttsWidget = overlay.querySelector('.tts-widget');
+    const ttsControls = overlay.querySelector('.tts-controls');
+    ttsWidget.addEventListener('click', function() {
+        if (ttsControls.style.display === 'none') {
+            ttsControls.style.display = 'block';
+        } else {
+            ttsControls.style.display = 'none';
+        }
+    });
+
+    // Show the overlay
+    overlay.style.display = 'block';
+}
+
+// Function to display HTML content in the overlay
+function displayHTML(html) {
+    showOverlay(html);
+}
+
 
   // Function to build share URLs
   function buildShareUrl(platform, href, title) {
