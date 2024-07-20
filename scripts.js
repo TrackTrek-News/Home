@@ -135,10 +135,15 @@ document.addEventListener('DOMContentLoaded', function() {
       .catch(error => console.error('Error fetching HTML:', error));
   }
 
+
 // Function to display HTML content
 function displayHTML(html) {
-  // Clear existing content
-  boxContainer.innerHTML = '';
+  // Save the current scroll position
+  const scrollPosition = window.scrollY;
+
+  // Create overlay element
+  const overlay = document.createElement('div');
+  overlay.classList.add('overlay');
 
   // Create a container for the HTML content
   const postContentContainer = document.createElement('div');
@@ -149,27 +154,187 @@ function displayHTML(html) {
   const closeButton = document.createElement('div');
   closeButton.classList.add('close-button');
   closeButton.innerHTML = '<i class="fas fa-times"></i>';
+  postContentContainer.appendChild(closeButton);
 
-  // Insert the close button at the top of the content
-  postContentContainer.insertAdjacentElement('afterbegin', closeButton);
+  // Create a widget icon
+  const widgetIcon = document.createElement('div');
+  widgetIcon.classList.add('widget-icon');
+  widgetIcon.innerHTML = '<i class="fas fa-volume-up"></i>';
 
-  // Append the content to the box container
-  boxContainer.appendChild(postContentContainer);
+  // Create widget controls
+  const widgetControls = document.createElement('div');
+  widgetControls.classList.add('widget-controls');
+  widgetControls.innerHTML = `
+    <br>
+    <select id="voiceselection" aria-label="Voice selection"></select>
+    <br>
+    <label for="speedControl">Speed:</label>
+    <input type="range" id="speedControl" min="0.1" max="2" step="0.1" value="1" aria-label="Speech speed">
+    <span id="speedValue">1.0</span>
+    <br>
+    <input id="readButton" type="button" value="Read this for me" aria-label="Read text"/>
+    <input id="stopButton" type="button" class="stop-button" value="Stop" aria-label="Stop reading"/>
+  `;
 
-  // Ensure the close button is visible immediately
-  closeButton.style.display = 'block';
+  // Append the content and widgets to the overlay
+  overlay.appendChild(postContentContainer);
+  overlay.appendChild(widgetIcon);
+  overlay.appendChild(widgetControls);
+
+  // Append overlay to the body
+  document.body.appendChild(overlay);
+
+  // Disable background scroll
+  document.body.style.overflow = 'hidden';
 
   // Add event listener to close button
   closeButton.addEventListener('click', function() {
-    boxContainer.removeChild(postContentContainer);
-    renderPosts(postsData); // Re-render posts after closing
+    document.body.removeChild(overlay); // Remove overlay from the body
+    document.body.style.overflow = ''; // Restore background scroll
+
+    // Restore the scroll position of the background
+    window.scrollTo(0, scrollPosition);
+
+    // Stop TTS when overlay is closed
+    responsiveVoice.cancel();
   });
 
-  // Scroll to the top to ensure the close button is visible
-  postContentContainer.scrollTop = 0;
+  // Add event listener to widget icon to toggle controls
+  widgetIcon.addEventListener('click', function() {
+    widgetControls.style.display = (widgetControls.style.display === 'block') ? 'none' : 'block';
+  });
+
+  // Add scroll event listener to keep close button visible while scrolling
+  postContentContainer.addEventListener('scroll', function() {
+    closeButton.style.display = 'block'; // Show close button while scrolling
+  });
+
+  // Populate voices and handle speech
+  function populateVoices() {
+    var voicelist = responsiveVoice.getVoices();
+    var vselect = $("#voiceselection");
+    vselect.empty(); // Clear existing options
+
+    if (voicelist.length === 0) {
+      setTimeout(populateVoices, 100); // Retry if voices are not yet loaded
+      return;
+    }
+
+    $.each(voicelist, function() {
+      vselect.append($("<option />").val(this.name).text(this.name));
+    });
+  }
+
+  populateVoices(); // Call the function to populate voices
+
+  // Update the speed value display
+  $('#speedControl').on('input', function() {
+    $('#speedValue').text($(this).val());
+  });
+
+  let isSpeaking = false;
+  let currentSentenceIndex = 0;
+  let sentences = [];
+
+  function extractAndHighlightSentences() {
+    const elements = postContentContainer.querySelectorAll('h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, p, sub');
+    sentences = [];
+
+    elements.forEach(el => {
+      const text = el.innerText;
+      // Clear the element's content
+      el.innerHTML = '';
+
+      // Split text into sentences based on common sentence delimiters
+      text.split(/(?<=[.!?])\s+/).forEach((sentence, index) => {
+        if (sentence.trim()) {
+          const span = document.createElement('span');
+          span.innerText = sentence.trim();
+          span.classList.add('sentence');
+          span.dataset.index = sentences.length;
+          sentences.push({ text: sentence.trim(), element: span });
+
+          // Add space after the sentence
+          const space = document.createTextNode(' ');
+
+          el.appendChild(span);
+          el.appendChild(space);
+        }
+      });
+    });
+
+    // Attach click event to each sentence
+    postContentContainer.querySelectorAll('.sentence').forEach(span => {
+      span.addEventListener('click', function() {
+        const index = parseInt(this.dataset.index);
+        currentSentenceIndex = index;
+        highlightSentence(index);
+        stopSpeaking(); // Stop any ongoing speech
+        speakFromCurrentIndex();
+      });
+    });
+  }
+
+  function highlightSentence(index) {
+    if (index >= sentences.length) return; // Stop if index is out of bounds
+
+    // Clear previous highlights
+    postContentContainer.querySelectorAll('.selected-sentence').forEach(el => {
+      el.classList.remove('selected-sentence');
+    });
+
+    const sentence = sentences[index];
+    const span = sentence.element;
+    span.classList.add('selected-sentence');
+    span.scrollIntoView({ behavior: 'smooth', block: 'center' }); // Scroll the element into view
+  }
+
+  function speakNext() {
+    if (currentSentenceIndex < sentences.length) {
+      const currentSentence = sentences[currentSentenceIndex];
+      responsiveVoice.speak(currentSentence.text, $('#voiceselection').val(), {
+        rate: $('#speedControl').val(), // Adjust the rate of speech
+        onend: function() {
+          currentSentenceIndex++;
+          highlightSentence(currentSentenceIndex);
+          if (isSpeaking) speakNext(); // Continue speaking if not stopped
+        }
+      });
+      highlightSentence(currentSentenceIndex);
+    } else {
+      isSpeaking = false; // Finished speaking
+    }
+  }
+
+  function speakAndHighlight() {
+    if (isSpeaking) return; // Prevent multiple instances of TTS
+    isSpeaking = true;
+    speakNext();
+  }
+
+  function speakFromCurrentIndex() {
+    if (isSpeaking) return; // Prevent multiple instances of TTS
+    isSpeaking = true;
+    speakNext();
+  }
+
+  function stopSpeaking() {
+    responsiveVoice.cancel();
+    isSpeaking = false;
+  }
+
+  extractAndHighlightSentences(); // Extract sentences and make them clickable
+
+  $('#readButton').on('click', function() {
+    if (!isSpeaking) {
+      speakFromCurrentIndex();
+    }
+  });
+
+  $('#stopButton').on('click', function() {
+    stopSpeaking();
+  });
 }
-
-
 
 
   // Function to build share URLs
