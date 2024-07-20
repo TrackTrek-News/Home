@@ -135,36 +135,42 @@ document.addEventListener('DOMContentLoaded', function() {
       .catch(error => console.error('Error fetching HTML:', error));
   }
 
-  // Function to display HTML content
-  function displayHTML(html) {
-    // Clear existing content
-    boxContainer.innerHTML = '';
+// Function to display HTML content
+function displayHTML(html) {
+  // Clear existing content
+  boxContainer.innerHTML = '';
 
-    // Create a container for the HTML content
-    const postContentContainer = document.createElement('div');
-    postContentContainer.classList.add('post-content-container');
-    postContentContainer.innerHTML = html;
+  // Create a container for the HTML content
+  const postContentContainer = document.createElement('div');
+  postContentContainer.classList.add('post-content-container');
+  postContentContainer.innerHTML = html;
 
-    // Create a close button
-    const closeButton = document.createElement('div');
-    closeButton.classList.add('close-button');
-    closeButton.innerHTML = '<i class="fas fa-times"></i>';
-    postContentContainer.appendChild(closeButton);
+  // Create a close button
+  const closeButton = document.createElement('div');
+  closeButton.classList.add('close-button');
+  closeButton.innerHTML = '<i class="fas fa-times"></i>';
 
-    // Append the content to the box container
-    boxContainer.appendChild(postContentContainer);
+  // Insert the close button at the top of the content
+  postContentContainer.insertAdjacentElement('afterbegin', closeButton);
 
-    // Add event listener to close button
-    closeButton.addEventListener('click', function() {
-      boxContainer.removeChild(postContentContainer);
-      renderPosts(postsData); // Re-render posts after closing
-    });
+  // Append the content to the box container
+  boxContainer.appendChild(postContentContainer);
 
-    // Add scroll event listener to keep close button visible while scrolling
-    postContentContainer.addEventListener('scroll', function() {
-      closeButton.style.display = 'block'; // Show close button while scrolling
-    });
-  }
+  // Ensure the close button is visible immediately
+  closeButton.style.display = 'block';
+
+  // Add event listener to close button
+  closeButton.addEventListener('click', function() {
+    boxContainer.removeChild(postContentContainer);
+    renderPosts(postsData); // Re-render posts after closing
+  });
+
+  // Scroll to the top to ensure the close button is visible
+  postContentContainer.scrollTop = 0;
+}
+
+
+
 
   // Function to build share URLs
   function buildShareUrl(platform, href, title) {
