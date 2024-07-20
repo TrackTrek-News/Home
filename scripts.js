@@ -136,7 +136,6 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
 
-// Function to display HTML content
 function displayHTML(html) {
   // Save the current scroll position
   const scrollPosition = window.scrollY;
@@ -165,15 +164,19 @@ function displayHTML(html) {
   const widgetControls = document.createElement('div');
   widgetControls.classList.add('widget-controls');
   widgetControls.innerHTML = `
-    <br>
-    <select id="voiceselection" aria-label="Voice selection"></select>
-    <br>
-    <label for="speedControl">Speed:</label>
-    <input type="range" id="speedControl" min="0.1" max="2" step="0.1" value="1" aria-label="Speech speed">
-    <span id="speedValue">1.0</span>
-    <br>
-    <input id="readButton" type="button" value="Read this for me" aria-label="Read text"/>
-    <input id="stopButton" type="button" class="stop-button" value="Stop" aria-label="Stop reading"/>
+    <div style="margin-bottom:15px">
+      <label for="voiceselection">Voice:</label>
+      <select id="voiceselection" aria-label="Voice selection"></select>
+    </div>
+    <div style="margin-bottom:5px">
+      <label for="speedControl">Speed:</label>
+      <input type="range" id="speedControl" min="0.1" max="2" step="0.1" value="1" aria-label="Speech speed">
+      <span id="speedValue">1.0</span>
+    </div>
+    <div>
+      <input id="readButton" type="button" value="Read this for me" aria-label="Read text"/>
+      <input id="stopButton" type="button" class="stop-button" value="Stop" aria-label="Stop reading"/>
+    </div>
   `;
 
   // Append the content and widgets to the overlay
