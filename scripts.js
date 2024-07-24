@@ -21,9 +21,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (post) {
           renderPosts([post]); // Show only the specific post
           if (post.html_link.startsWith('http')) {
-            fetchHTML(post.html_link); // Fetch HTML content if link is external
+            fetchHTML(post.html_link, post.image); // Fetch HTML content if link is external
           } else {
-            fetchHTML('https://raw.githubusercontent.com/TrackTrekk/_/main/' + post.html_link); // Fetch HTML content for local links
+            fetchHTML('https://raw.githubusercontent.com/TrackTrekk/_/main/' + post.html_link, post.image); // Fetch HTML content for local links
           }
           updateMetaTags(post); // Update meta tags
         }
@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const box = document.createElement('div');
       box.classList.add('box');
       box.setAttribute('data-href', post.html_link); // Use the HTML link from JSON
+      box.setAttribute('data-image', post.image); // Store the image link in the data attribute
 
       const img = document.createElement('img');
       img.src = post.image;
@@ -49,8 +50,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       const meta = document.createElement('div');
       meta.classList.add('box-meta');
-      meta.textContent = `Posted on ${post.date}`;
-
+      meta.textContent = `Posted on ${post.date}  • [ ${post.type} ]`;
       const content = document.createElement('div');
       content.classList.add('box-content');
       content.innerHTML = `<p>${post.content}</p>`;
@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (post.html_link.startsWith('http')) {
           window.open(post.html_link, '_blank'); // Open external link in a new tab
         } else {
-          fetchHTML('https://raw.githubusercontent.com/TrackTrekk/_/main/' + post.html_link); // Fetch HTML content for local links
+          fetchHTML('https://raw.githubusercontent.com/TrackTrekk/_/main/' + post.html_link, post.image); // Fetch HTML content for local links
         }
         updateMetaTags(post); // Update meta tags
       });
@@ -120,7 +120,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Function to fetch HTML content
-  function fetchHTML(htmlLink) {
+  function fetchHTML(htmlLink, imageUrl) {
     fetch(htmlLink)
       .then(response => {
         if (!response.ok) {
@@ -130,90 +130,95 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .then(html => {
         console.log('Fetched HTML content:', html); // Debugging
-        displayHTML(html);
+        displayHTML(html, imageUrl);
       })
       .catch(error => console.error('Error fetching HTML:', error));
   }
 
+  function displayHTML(html, imageUrl) {
+    // Save the current scroll position
+    const scrollPosition = window.scrollY;
 
-function displayHTML(html) {
-  // Save the current scroll position
-  const scrollPosition = window.scrollY;
+    // Create overlay element
+    const overlay = document.createElement('div');
+    overlay.classList.add('overlay');
 
-  // Create overlay element
-  const overlay = document.createElement('div');
-  overlay.classList.add('overlay');
+    // Create a container for the HTML content
+    const postContentContainer = document.createElement('div');
+    postContentContainer.classList.add('post-content-container');
+    postContentContainer.innerHTML = html;
 
-  // Create a container for the HTML content
-  const postContentContainer = document.createElement('div');
-  postContentContainer.classList.add('post-content-container');
-  postContentContainer.innerHTML = html;
+    // Insert the image link into the <img class="p-img" src="" alt="Song Cover"> tag
+    const imgTag = postContentContainer.querySelector('img.p-img');
+    if (imgTag) {
+      imgTag.src = imageUrl;
+    }
 
-  // Create a close button
-  const closeButton = document.createElement('div');
-  closeButton.classList.add('close-button');
-  closeButton.innerHTML = '<i class="fas fa-times"></i>';
-  postContentContainer.appendChild(closeButton);
+    // Create a close button
+    const closeButton = document.createElement('div');
+    closeButton.classList.add('close-button');
+    closeButton.innerHTML = '<i class="fas fa-times"></i>';
+    postContentContainer.appendChild(closeButton);
 
-  // Create a widget icon
-  const widgetIcon = document.createElement('div');
-  widgetIcon.classList.add('widget-icon');
-  widgetIcon.innerHTML = '<i class="fas fa-volume-up"></i>';
+    // Create a widget icon
+    const widgetIcon = document.createElement('div');
+    widgetIcon.classList.add('widget-icon');
+    widgetIcon.innerHTML = '<i class="fas fa-volume-up"></i>';
 
-  // Create widget controls
-  const widgetControls = document.createElement('div');
-  widgetControls.classList.add('widget-controls');
-  widgetControls.innerHTML = `
-    <div style="margin-bottom:15px">
-      <label for="voiceselection">Voice:</label>
-      <select id="voiceselection" aria-label="Voice selection"></select>
-    </div>
-    <div style="margin-bottom:5px">
-      <label for="speedControl">Speed:</label>
-      <input type="range" id="speedControl" min="0.1" max="2" step="0.1" value="1" aria-label="Speech speed">
-      <span id="speedValue">1.0</span>
-    </div>
-    <div>
-      <input id="readButton" type="button" value="Read this for me" aria-label="Read text"/>
-      <input id="stopButton" type="button" class="stop-button" value="Stop" aria-label="Stop reading"/>
-    </div>
-  `;
+    // Create widget controls
+    const widgetControls = document.createElement('div');
+    widgetControls.classList.add('widget-controls');
+    widgetControls.innerHTML = `
+      <div style="margin-bottom:15px">
+        <label for="voiceselection">Voice:</label>
+        <select id="voiceselection" aria-label="Voice selection"></select>
+      </div>
+      <div style="margin-bottom:5px">
+        <label for="speedControl">Speed:</label>
+        <input type="range" id="speedControl" min="0.1" max="2" step="0.1" value="1" aria-label="Speech speed">
+        <span id="speedValue">1.0</span>
+      </div>
+      <div>
+        <input id="readButton" type="button" value="Read this for me" aria-label="Read text"/>
+        <input id="stopButton" type="button" class="stop-button" value="Stop" aria-label="Stop reading"/>
+      </div>
+    `;
 
-  // Append the content and widgets to the overlay
-  overlay.appendChild(postContentContainer);
-  overlay.appendChild(widgetIcon);
-  overlay.appendChild(widgetControls);
+    // Append the content and widgets to the overlay
+    overlay.appendChild(postContentContainer);
+    overlay.appendChild(widgetIcon);
+    overlay.appendChild(widgetControls);
 
-  // Append overlay to the body
-  document.body.appendChild(overlay);
+    // Append overlay to the body
+    document.body.appendChild(overlay);
 
-  // Disable background scroll
-  document.body.style.overflow = 'hidden';
+    // Disable background scroll
+    document.body.style.overflow = 'hidden';
 
-  // Add event listener to close button
-  closeButton.addEventListener('click', function() {
-    document.body.removeChild(overlay); // Remove overlay from the body
-    document.body.style.overflow = ''; // Restore background scroll
+    // Add event listener to close button
+    closeButton.addEventListener('click', function() {
+      document.body.removeChild(overlay); // Remove overlay from the body
+      document.body.style.overflow = ''; // Restore background scroll
 
-    // Restore the scroll position of the background
-    window.scrollTo(0, scrollPosition);
+      // Restore the scroll position of the background
+      window.scrollTo(0, scrollPosition);
 
-    // Stop TTS when overlay is closed
-    responsiveVoice.cancel();
-  });
+      // Stop TTS when overlay is closed
+      responsiveVoice.cancel();
+    });
 
-  // Add event listener to widget icon to toggle controls
-  widgetIcon.addEventListener('click', function() {
-    widgetControls.style.display = (widgetControls.style.display === 'block') ? 'none' : 'block';
-  });
+    // Add event listener to widget icon to toggle controls
+    widgetIcon.addEventListener('click', function() {
+      widgetControls.style.display = (widgetControls.style.display === 'block') ? 'none' : 'block';
+    });
 
-  // Add scroll event listener to keep close button visible while scrolling
-  postContentContainer.addEventListener('scroll', function() {
-    closeButton.style.display = 'block'; // Show close button while scrolling
-  });
+    // Add scroll event listener to keep close button visible while scrolling
+    postContentContainer.addEventListener('scroll', function() {
+      closeButton.style.display = 'block'; // Show close button while scrolling
+    });
 
-  // Populate voices and handle speech
-  function populateVoices() {
+    // Populate voices and handle speech
+    function populateVoices() {
     var voicelist = responsiveVoice.getVoices();
     var vselect = $("#voiceselection");
     vselect.empty(); // Clear existing options
@@ -337,7 +342,28 @@ function displayHTML(html) {
   $('#stopButton').on('click', function() {
     stopSpeaking();
   });
+
+  // Function to dynamically update the image in the overlay
+  function updateOverlayImage(post) {
+    const overlayImage = document.querySelector('.overlay .p-img');
+    if (overlayImage) {
+      overlayImage.src = post.image;
+      overlayImage.alt = post.title;
+    }
+  }
 }
+
+// Event listener to pass the fetched image to the overlay
+document.addEventListener('click', function(event) {
+  const target = event.target;
+  if (target.classList.contains('box')) {
+    const postId = target.getAttribute('data-href');
+    const post = postsData.find(p => p.html_link === postId);
+    if (post) {
+      updateOverlayImage(post);
+    }
+  }
+});
 
 
   // Function to build share URLs
